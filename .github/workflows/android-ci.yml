@@ -1,4 +1,4 @@
-name: Build Debug APK (Complete)
+name: Build APK (Full Auto)
 
 on: [push, pull_request, workflow_dispatch]
 
@@ -12,7 +12,6 @@ jobs:
           submodules: 'recursive'
           fetch-depth: 0
 
-      # ضمان أن الـ submodules محدثة بالكامل
       - name: Force submodule update
         run: |
           git submodule sync --recursive
@@ -24,20 +23,25 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK & NDK
+      - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
           packages: 'platforms;android-34 build-tools;34.0.0 ndk;26.1.10909125 cmake;3.22.1'
 
-      - name: Verify submodule folders exist
+      # خطوة سحرية: تحمّل Gradle وتنشئ wrapper جديد بالكامل
+      - name: Generate fresh Gradle Wrapper
         run: |
-          echo "argon2 contents:"
-          ls -la argon2 2>/dev/null || echo "argon2 missing"
-          echo "lwext4 contents:"
-          ls -la lwext4 2>/dev/null || echo "lwext4 missing"
-
-      - name: Grant gradlew permission
-        run: chmod +x gradlew
+          # إذا كان هناك أي wrapper قديم، احذفه
+          rm -rf gradle/wrapper gradlew gradlew.bat
+          # تحميل Gradle 8.4
+          curl -sL https://services.gradle.org/distributions/gradle-8.4-bin.zip -o gradle.zip
+          unzip -q gradle.zip
+          export PATH=$PWD/gradle-8.4/bin:$PATH
+          # إنشاء wrapper جديد
+          gradle wrapper --gradle-version 8.4
+          chmod +x gradlew
+          # تأكيد وجود الملفات
+          ls -l gradlew gradle/wrapper/gradle-wrapper.jar
 
       - name: Build Debug APK
         run: ./gradlew assembleDebug --stacktrace
