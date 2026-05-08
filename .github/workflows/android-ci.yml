@@ -5,7 +5,7 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch:   # يسمح بالتشغيل اليدوي للاختبار
+  workflow_dispatch:
 
 jobs:
   build:
@@ -25,11 +25,7 @@ jobs:
       - name: Setup Android SDK & NDK
         uses: android-actions/setup-android@v3
         with:
-          packages: |
-            platforms;android-34
-            build-tools;34.0.0
-            ndk;26.1.10909125
-            cmake;3.22.1
+          packages: 'platforms;android-34 build-tools;34.0.0 ndk;26.1.10909125 cmake;3.22.1'
 
       - name: Cache Gradle packages
         uses: actions/cache@v4
@@ -68,8 +64,6 @@ jobs:
         run: |
           echo "=== APK files found ==="
           find . -name "*.apk" 2>/dev/null || echo "No APK"
-          echo "=== AAB files ==="
-          find . -name "*.aab" 2>/dev/null || echo "No AAB"
           echo "=== app/build directory ==="
           ls -R app/build 2>/dev/null || echo "No build dir"
 
