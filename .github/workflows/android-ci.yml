@@ -52,20 +52,23 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build Release APK
+      - name: Build Release APK (with detailed logging)
         env:
           KEYSTORE_FILE: ${{ github.workspace }}/release-test.jks
           KEYSTORE_PASSWORD: android
           KEY_ALIAS: release
           KEY_PASSWORD: android
-        run: ./gradlew assembleRelease
+        run: ./gradlew assembleRelease --stacktrace --info
 
-      - name: Check build outputs
+      - name: Verify build artifacts
         run: |
-          echo "=== APK files found ==="
-          find . -name "*.apk" 2>/dev/null || echo "No APK"
-          echo "=== app/build directory ==="
-          ls -R app/build 2>/dev/null || echo "No build dir"
+          if [ -d app/build ]; then
+            echo "Build directory found"
+            find app/build -type f -name "*.apk" || echo "No APK inside"
+          else
+            echo "❌ Build directory MISSING - check previous Gradle logs for errors"
+            exit 1
+          fi
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
