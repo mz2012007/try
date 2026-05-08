@@ -27,10 +27,23 @@ android {
         }
     }
 
+    // ⬇️ أضف هذه الكتلة بالكامل
+    signingConfigs {
+        create("release") {
+            storeFile = file(System.getenv("KEYSTORE_FILE") ?: "release.jks")
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "android"
+            keyAlias = System.getenv("KEY_ALIAS") ?: "release"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: "android"
+        }
+    }
+    // ⬆️ نهاية الإضافة
+
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // ⬇️ أضف هذا السطر
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 

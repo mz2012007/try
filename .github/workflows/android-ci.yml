@@ -1,10 +1,11 @@
-name: Android CI (NDK)
+name: Android CI (Release APK)
 
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:   # يسمح بالتشغيل اليدوي للاختبار
 
 jobs:
   build:
@@ -24,7 +25,11 @@ jobs:
       - name: Setup Android SDK & NDK
         uses: android-actions/setup-android@v3
         with:
-          packages: 'platforms;android-34 build-tools;34.0.0 ndk;26.1.10909125 cmake;3.22.1'
+          packages: |
+            platforms;android-34
+            build-tools;34.0.0
+            ndk;26.1.10909125
+            cmake;3.22.1
 
       - name: Cache Gradle packages
         uses: actions/cache@v4
@@ -35,23 +40,42 @@ jobs:
           key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*') }}
           restore-keys: gradle-${{ runner.os }}-
 
+      - name: Generate Release Keystore (temporary)
+        run: |
+          keytool -genkey -v \
+            -keystore release-test.jks \
+            -alias release \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass android \
+            -keypass android \
+            -dname "CN=Test, OU=Test, O=Test, L=Test, S=Test, C=US" \
+            -noprompt
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug
+      - name: Build Release APK
+        env:
+          KEYSTORE_FILE: ${{ github.workspace }}/release-test.jks
+          KEYSTORE_PASSWORD: android
+          KEY_ALIAS: release
+          KEY_PASSWORD: android
+        run: ./gradlew assembleRelease
 
-      - name: Debug - list all build outputs
+      - name: Check build outputs
         run: |
-          echo "=== Searching for APK files ==="
-          find app/build -type f -name "*.apk" 2>/dev/null || echo "No APK files found"
-          echo "=== Full directory listing ==="
-          find app/build -type f 2>/dev/null || echo "Build directory empty"
+          echo "=== APK files found ==="
+          find . -name "*.apk" 2>/dev/null || echo "No APK"
+          echo "=== AAB files ==="
+          find . -name "*.aab" 2>/dev/null || echo "No AAB"
+          echo "=== app/build directory ==="
+          ls -R app/build 2>/dev/null || echo "No build dir"
 
-      - name: Upload APK artifact
+      - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: LUKS2FileManager-debug
-          path: |
-            app/build/outputs/apk/**/*.apk
-          if-no-files-found: warn
+          name: LUKS2FileManager-release
+          path: app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
