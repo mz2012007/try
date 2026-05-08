@@ -1,19 +1,32 @@
 cmake_minimum_required(VERSION 3.22)
 project("luks2reader")
 
-# ======== cJSON ========
+# ====== cJSON ======
 add_library(cjson STATIC cjson/cJSON.c)
 target_include_directories(cjson PUBLIC cjson)
 
-# ======== Argon2 ========
-# جذر المستودع هو ../../../../ من موقع CMakeLists.txt الحالي
-set(ROOT_PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../../)
-add_subdirectory(${ROOT_PROJECT_DIR}/argon2 ${CMAKE_BINARY_DIR}/argon2)
+# ====== argon2 ======
+set(ROOT_PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../..)
+if(EXISTS "${ROOT_PROJECT_DIR}/argon2/CMakeLists.txt")
+    add_subdirectory(${ROOT_PROJECT_DIR}/argon2 ${CMAKE_BINARY_DIR}/argon2)
+else()
+    # Fallback – بناء من المصادر مباشرة
+    add_library(argon2 STATIC
+        ${ROOT_PROJECT_DIR}/argon2/src/argon2.c
+        ${ROOT_PROJECT_DIR}/argon2/src/core.c
+        ${ROOT_PROJECT_DIR}/argon2/src/blake2/blake2b.c
+    )
+    target_include_directories(argon2 PUBLIC ${ROOT_PROJECT_DIR}/argon2/include)
+endif()
 
-# ======== lwext4 ========
-add_subdirectory(${ROOT_PROJECT_DIR}/lwext4 ${CMAKE_BINARY_DIR}/lwext4)
+# ====== lwext4 ======
+if(EXISTS "${ROOT_PROJECT_DIR}/lwext4/CMakeLists.txt")
+    add_subdirectory(${ROOT_PROJECT_DIR}/lwext4 ${CMAKE_BINARY_DIR}/lwext4)
+else()
+    message(FATAL_ERROR "lwext4 not found – submodule not initialized?")
+endif()
 
-# ======== المكتبة الرئيسية ========
+# ====== المكتبة الرئيسية ======
 add_library(native-lib SHARED
     native-lib.cpp
     luks/luks2_parser.cpp
@@ -31,7 +44,6 @@ target_include_directories(native-lib PRIVATE
     ${ROOT_PROJECT_DIR}/argon2/include
 )
 
-# ⚠️ حاليًا لا نستخدم OpenSSL (سيُضاف لاحقًا عند الحاجة)
 target_link_libraries(native-lib
     cjson
     argon2

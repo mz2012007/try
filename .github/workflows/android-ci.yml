@@ -1,4 +1,4 @@
-name: Build Debug APK (Auto Wrapper)
+name: Build Debug APK (Complete)
 
 on: [push, pull_request, workflow_dispatch]
 
@@ -6,10 +6,17 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository with submodules
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: 'recursive'
+          fetch-depth: 0
+
+      # ضمان أن الـ submodules محدثة بالكامل
+      - name: Force submodule update
+        run: |
+          git submodule sync --recursive
+          git submodule update --init --recursive --force
 
       - name: Setup JDK 17
         uses: actions/setup-java@v4
@@ -17,28 +24,22 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK
+      - name: Setup Android SDK & NDK
         uses: android-actions/setup-android@v3
         with:
           packages: 'platforms;android-34 build-tools;34.0.0 ndk;26.1.10909125 cmake;3.22.1'
 
-      - name: Download Gradle and generate fresh wrapper
+      - name: Verify submodule folders exist
         run: |
-          # إزالة أي wrapper تالف
-          rm -rf gradle/wrapper gradlew gradlew.bat
-          # تحميل Gradle
-          curl -sL https://services.gradle.org/distributions/gradle-8.4-bin.zip -o gradle.zip
-          unzip -q gradle.zip
-          export PATH=$PWD/gradle-8.4/bin:$PATH
-          # إنشاء الـ wrapper جديد تمامًا
-          gradle wrapper --gradle-version 8.4
-          # التأكد من وجود الملفات الأساسية
-          ls -l gradlew gradle/wrapper/gradle-wrapper.jar
+          echo "argon2 contents:"
+          ls -la argon2 2>/dev/null || echo "argon2 missing"
+          echo "lwext4 contents:"
+          ls -la lwext4 2>/dev/null || echo "lwext4 missing"
 
       - name: Grant gradlew permission
         run: chmod +x gradlew
 
-      - name: Build Debug APK with stacktrace
+      - name: Build Debug APK
         run: ./gradlew assembleDebug --stacktrace
 
       - name: Upload Debug APK
