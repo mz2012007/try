@@ -1,0 +1,4 @@
+<resources>
+    <style name="Theme.LUKS2FileManager" parent="android:Theme.Material.Light.NoActionBar">
+    </style>
+</resources>

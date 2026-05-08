@@ -1,11 +1,10 @@
-name: Android CI (Release APK)
+name: Build Debug APK (Full Log)
 
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch:
 
 jobs:
   build:
@@ -27,52 +26,22 @@ jobs:
         with:
           packages: 'platforms;android-34 build-tools;34.0.0 ndk;26.1.10909125 cmake;3.22.1'
 
-      - name: Cache Gradle packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*') }}
-          restore-keys: gradle-${{ runner.os }}-
-
-      - name: Generate Release Keystore (temporary)
-        run: |
-          keytool -genkey -v \
-            -keystore release-test.jks \
-            -alias release \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -storepass android \
-            -keypass android \
-            -dname "CN=Test, OU=Test, O=Test, L=Test, S=Test, C=US" \
-            -noprompt
-
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build Release APK (with detailed logging)
-        env:
-          KEYSTORE_FILE: ${{ github.workspace }}/release-test.jks
-          KEYSTORE_PASSWORD: android
-          KEY_ALIAS: release
-          KEY_PASSWORD: android
-        run: ./gradlew assembleRelease --stacktrace --info
+      - name: Build Debug APK with full stacktrace
+        run: ./gradlew assembleDebug --stacktrace --info 2>&1 | tee build.log
 
-      - name: Verify build artifacts
-        run: |
-          if [ -d app/build ]; then
-            echo "Build directory found"
-            find app/build -type f -name "*.apk" || echo "No APK inside"
-          else
-            echo "❌ Build directory MISSING - check previous Gradle logs for errors"
-            exit 1
-          fi
-
-      - name: Upload Release APK
+      - name: Upload build log if failure
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: LUKS2FileManager-release
+          name: build-log
+          path: build.log
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: LUKS2FileManager-debug
           path: app/build/outputs/apk/**/*.apk
           if-no-files-found: error
