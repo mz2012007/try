@@ -44,5 +44,6 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: LUKS2FileManager-debug.apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: LUKS2FileManager-debug
+          path: app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
