@@ -1,4 +1,4 @@
-name: Build & Auto-Repair Wrapper
+name: Build Debug APK (Auto Wrapper)
 
 on: [push, pull_request, workflow_dispatch]
 
@@ -22,17 +22,21 @@ jobs:
         with:
           packages: 'platforms;android-34 build-tools;34.0.0 ndk;26.1.10909125 cmake;3.22.1'
 
-      - name: Generate Gradle Wrapper if missing
+      - name: Download Gradle and generate fresh wrapper
         run: |
-          if [ ! -f gradlew ] || [ ! -s gradlew ]; then
-            echo "Wrapper missing, creating..."
-            # تحميل Gradle مؤقتًا لإنشاء wrapper
-            curl -s https://services.gradle.org/distributions/gradle-8.4-bin.zip -o gradle.zip
-            unzip -q gradle.zip
-            export PATH=$PWD/gradle-8.4/bin:$PATH
-            gradle wrapper --gradle-version 8.4
-          fi
-          chmod +x gradlew
+          # إزالة أي wrapper تالف
+          rm -rf gradle/wrapper gradlew gradlew.bat
+          # تحميل Gradle
+          curl -sL https://services.gradle.org/distributions/gradle-8.4-bin.zip -o gradle.zip
+          unzip -q gradle.zip
+          export PATH=$PWD/gradle-8.4/bin:$PATH
+          # إنشاء الـ wrapper جديد تمامًا
+          gradle wrapper --gradle-version 8.4
+          # التأكد من وجود الملفات الأساسية
+          ls -l gradlew gradle/wrapper/gradle-wrapper.jar
+
+      - name: Grant gradlew permission
+        run: chmod +x gradlew
 
       - name: Build Debug APK with stacktrace
         run: ./gradlew assembleDebug --stacktrace
