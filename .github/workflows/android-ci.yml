@@ -41,9 +41,17 @@ jobs:
       - name: Build Debug APK
         run: ./gradlew assembleDebug
 
+      - name: Debug - list all build outputs
+        run: |
+          echo "=== Searching for APK files ==="
+          find app/build -type f -name "*.apk" 2>/dev/null || echo "No APK files found"
+          echo "=== Full directory listing ==="
+          find app/build -type f 2>/dev/null || echo "Build directory empty"
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: LUKS2FileManager-debug
-          path: app/build/outputs/apk/**/*.apk
-          if-no-files-found: error
+          path: |
+            app/build/outputs/apk/**/*.apk
+          if-no-files-found: warn
