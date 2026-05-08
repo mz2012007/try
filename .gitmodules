@@ -1,0 +1,6 @@
+[submodule "lwext4"]
+	path = lwext4
+	url = https://github.com/gkostka/lwext4.git
+[submodule "argon2"]
+	path = argon2
+	url = https://github.com/P-H-C/phc-winner-argon2.git
