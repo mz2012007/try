@@ -1,53 +1,48 @@
-cmake_minimum_required(VERSION 3.22)
-project("luks2reader")
+name: Build APK (Full Auto)
 
-# ======== cJSON ========
-add_library(cjson STATIC cjson/cJSON.c)
-target_include_directories(cjson PUBLIC cjson)
+on: [push, pull_request, workflow_dispatch]
 
-# ======== argon2 ========
-set(ROOT_PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../..)
-if(EXISTS "${ROOT_PROJECT_DIR}/argon2/CMakeLists.txt")
-    add_subdirectory(${ROOT_PROJECT_DIR}/argon2 ${CMAKE_BINARY_DIR}/argon2)
-else()
-    add_library(argon2 STATIC
-        ${ROOT_PROJECT_DIR}/argon2/src/argon2.c
-        ${ROOT_PROJECT_DIR}/argon2/src/core.c
-        ${ROOT_PROJECT_DIR}/argon2/src/blake2/blake2b.c
-    )
-    target_include_directories(argon2 PUBLIC ${ROOT_PROJECT_DIR}/argon2/include)
-endif()
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+          fetch-depth: 0
 
-# ======== lwext4 ========
-if(EXISTS "${ROOT_PROJECT_DIR}/lwext4/CMakeLists.txt")
-    add_subdirectory(${ROOT_PROJECT_DIR}/lwext4 ${CMAKE_BINARY_DIR}/lwext4)
-else()
-    message(FATAL_ERROR "lwext4 not found – submodule not initialized?")
-endif()
+      - name: Force submodule update
+        run: |
+          git submodule sync --recursive
+          git submodule update --init --recursive --force
 
-# ======== المكتبة الرئيسية ========
-add_library(native-lib SHARED
-    native-lib.cpp
-    luks/luks2_parser.cpp
-    crypto/aes_xts.cpp
-    crypto/disk_decryptor.cpp
-    crypto/keyslot_engine.cpp
-    io/container_reader.cpp
-    fs/luks_blockdev.cpp
-    fs/fs_utils.cpp
-)
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
-target_include_directories(native-lib PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${ROOT_PROJECT_DIR}/lwext4/include
-    ${ROOT_PROJECT_DIR}/argon2/include
-    ${CMAKE_BINARY_DIR}/lwext4/include   # للملفات المُولّدة مثل generated/ext4_config.h
-)
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-34 build-tools;34.0.0 ndk;26.1.10909125 cmake;3.22.1'
 
-target_link_libraries(native-lib
-    cjson
-    argon2
-    lwext4
-    android
-    log
-)
+      - name: Generate fresh Gradle Wrapper
+        run: |
+          rm -rf gradle/wrapper gradlew gradlew.bat
+          curl -sL https://services.gradle.org/distributions/gradle-8.4-bin.zip -o gradle.zip
+          unzip -q gradle.zip
+          export PATH=$PWD/gradle-8.4/bin:$PATH
+          gradle wrapper --gradle-version 8.4
+          chmod +x gradlew
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: LUKS2Reader-debug
+          path: app/build/outputs/apk/**/*.apk
+          if-no-files-found: error

@@ -21,8 +21,6 @@ endif()
 # ======== lwext4 ========
 if(EXISTS "${ROOT_PROJECT_DIR}/lwext4/CMakeLists.txt")
     add_subdirectory(${ROOT_PROJECT_DIR}/lwext4 ${CMAKE_BINARY_DIR}/lwext4)
-    # إضافة مسار الملفات المُولّدة (generated/ext4_config.h)
-    target_include_directories(native-lib PRIVATE ${CMAKE_BINARY_DIR}/lwext4/include)
 else()
     message(FATAL_ERROR "lwext4 not found – submodule not initialized?")
 endif()
@@ -43,6 +41,7 @@ target_include_directories(native-lib PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${ROOT_PROJECT_DIR}/lwext4/include
     ${ROOT_PROJECT_DIR}/argon2/include
+    ${CMAKE_BINARY_DIR}/lwext4/include   # للملفات المُولّدة مثل generated/ext4_config.h
 )
 
 target_link_libraries(native-lib
