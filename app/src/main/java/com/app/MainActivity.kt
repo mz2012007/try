@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -33,6 +34,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun App() {
+    val context = LocalContext.current
     var containerPath by remember { mutableStateOf("/storage/emulated/0/Download/test.img") }
     var password by remember { mutableStateOf("") }
     var files by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -53,7 +55,7 @@ fun App() {
                         mounted = true
                     } catch (e: Exception) {
                         withContext(Dispatchers.Main) {
-                            Toast.makeText(this@MainActivity, "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
@@ -77,7 +79,7 @@ fun App() {
                                         val ok = NativeBridge.extractFile("/$file", dest.absolutePath)
                                         withContext(Dispatchers.Main) {
                                             Toast.makeText(
-                                                this@MainActivity,
+                                                context,
                                                 if (ok) "Extracted" else "Extract failed",
                                                 Toast.LENGTH_SHORT
                                             ).show()
