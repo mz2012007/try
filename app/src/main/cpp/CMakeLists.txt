@@ -5,25 +5,31 @@ project("luks2reader")
 add_library(cjson STATIC cjson/cJSON.c)
 target_include_directories(cjson PUBLIC cjson)
 
-# ======== argon2 ========
+# ======== argon2 (كامل) ========
 set(ROOT_PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../..)
 if(EXISTS "${ROOT_PROJECT_DIR}/argon2/CMakeLists.txt")
+    # لو وجد CMakeLists خاص بالأرجون (مثلا عند تثبيتها كـ submodule)
     add_subdirectory(${ROOT_PROJECT_DIR}/argon2 ${CMAKE_BINARY_DIR}/argon2)
 else()
+    # بناء يدوي لجميع الملفات الضرورية
     add_library(argon2 STATIC
         ${ROOT_PROJECT_DIR}/argon2/src/argon2.c
         ${ROOT_PROJECT_DIR}/argon2/src/core.c
         ${ROOT_PROJECT_DIR}/argon2/src/blake2/blake2b.c
+        ${ROOT_PROJECT_DIR}/argon2/src/encoding.c
+        ${ROOT_PROJECT_DIR}/argon2/src/thread.c
+        ${ROOT_PROJECT_DIR}/argon2/src/ref.c
     )
     target_include_directories(argon2 PUBLIC ${ROOT_PROJECT_DIR}/argon2/include)
+    # ربط pthread (مطلوبة لـ thread.c)
+    find_library(PTHREAD_LIB pthread)
+    if(PTHREAD_LIB)
+        target_link_libraries(argon2 PUBLIC ${PTHREAD_LIB})
+    endif()
 endif()
 
-# ======== lwext4 ========
-if(EXISTS "${ROOT_PROJECT_DIR}/lwext4/CMakeLists.txt")
-    add_subdirectory(${ROOT_PROJECT_DIR}/lwext4 ${CMAKE_BINARY_DIR}/lwext4)
-else()
-    message(FATAL_ERROR "lwext4 not found – submodule not initialized?")
-endif()
+# ======== lwext4: غير مستخدمة حاليًا (نستخدم stub) ========
+# add_subdirectory(...)  محذوفة
 
 # ======== المكتبة الرئيسية ========
 add_library(native-lib SHARED
@@ -39,15 +45,13 @@ add_library(native-lib SHARED
 
 target_include_directories(native-lib PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${ROOT_PROJECT_DIR}/lwext4/include
     ${ROOT_PROJECT_DIR}/argon2/include
-    ${CMAKE_BINARY_DIR}/lwext4/include   # للملفات المُولّدة مثل generated/ext4_config.h
 )
 
+# رابط فقط المكتبات الضرورية (بدون lwext4)
 target_link_libraries(native-lib
     cjson
     argon2
-    lwext4
     android
     log
 )
