@@ -5,9 +5,8 @@
 #include "crypto/keyslot_engine.h"
 #include "crypto/disk_decryptor.h"
 #include "io/container_reader.h"
-#include "fs/luks_blockdev.h"
-#include "fs/fs_utils.h"
-#include "ext4.h"
+#include "fs/luks_blockdev.h"   // قد يبقى فارغًا
+#include "fs/fs_utils.h"        // الدوال البديلة
 #include <android/log.h>
 
 #define TAG "LUKS2FS"
@@ -25,6 +24,7 @@ Java_com_app_NativeBridge_openContainer(JNIEnv* env, jclass, jstring path_, jstr
     const char* pass = env->GetStringUTFChars(pass_, nullptr);
     if (!path || !pass) return nullptr;
 
+    // 1. Parse LUKS2 header
     Luks2Parser parser(path);
     if (!parser.parseHeader()) {
         LOGE("parse failed");
@@ -43,6 +43,7 @@ Java_com_app_NativeBridge_openContainer(JNIEnv* env, jclass, jstring path_, jstr
     auto& slot = slots[0];
     auto& seg = segs[0];
 
+    // 2. Read keyslot area
     ContainerReader reader(path);
     if (!reader.open()) {
         env->ReleaseStringUTFChars(path_, path);
@@ -60,34 +61,24 @@ Java_com_app_NativeBridge_openContainer(JNIEnv* env, jclass, jstring path_, jstr
         return nullptr;
     }
 
+    // 3. Initialize disk decryptor
     uint64_t dataOffset = seg.offset * seg.sector_size;
     g_dec = new DiskDecryptor(path, volumeKey, dataOffset, seg.sector_size, seg.cipher);
 
-    setup_luks_blockdev(g_dec, seg.sector_size);
-    ext4_blockdev* bd = get_luks_blockdev();
-
-    int rc = ext4_mount(bd, "/", false);
-    if (rc != EOK) {
-        LOGE("mount fail %d", rc);
-        delete g_dec;
-        g_dec = nullptr;
-        env->ReleaseStringUTFChars(path_, path);
-        env->ReleaseStringUTFChars(pass_, pass);
-        return nullptr;
-    }
-    g_mounted = true;
-
+    // 4. استخدام القائمة البديلة عوضًا عن lwext4
+    (void)dataOffset; // تجنب تحذير عدم الاستخدام
     std::vector<std::string> files;
     if (!listRootFiles(files)) {
-        ext4_umount();
+        LOGE("listRootFiles failed");
         delete g_dec;
         g_dec = nullptr;
-        g_mounted = false;
         env->ReleaseStringUTFChars(path_, path);
         env->ReleaseStringUTFChars(pass_, pass);
         return nullptr;
     }
+    g_mounted = true; // تفعيل عمليات الاستخراج
 
+    // 5. بناء مصفوفة Java
     jclass strClass = env->FindClass("java/lang/String");
     jobjectArray arr = env->NewObjectArray(files.size(), strClass, nullptr);
     for (size_t i = 0; i < files.size(); i++) {
